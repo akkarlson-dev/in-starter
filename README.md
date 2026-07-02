@@ -63,6 +63,8 @@ This moves fast enough that even recent hands-on experience goes stale in months
 
 One thing to expect: it will pause and ask permission before changing a file or running a command, especially the first few times. That's normal. Approve it and it keeps going.
 
+Nothing here is a hidden model behavior. Every session, Claude's sense of "who you are and what this workspace is" comes directly from `CLAUDE.md`, a plain human-readable file it reads fresh each time and keeps updating as things change. Open it any time and you'll see exactly what it knows.
+
 ---
 
 ## Getting your form
