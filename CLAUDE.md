@@ -47,7 +47,7 @@ What do they want to pull out of their captures?
 Each goal beyond tasks adds a tab to the Sheet. Keep it to one or two for v1.
 
 **4. Form field names**
-Amy's defaults are: "What's on your mind?" / "Tag?" / "Context?"
+Defaults are: "What?" / "Tag?"
 They can rename these or keep them. The names must match the form exactly — Claude will help them verify this after the form is set up.
 
 ---
@@ -60,7 +60,7 @@ Mention these when relevant, not all at once upfront.
 
 **Screenshots and photos:** The iPhone default saves to Camera Roll, not the pipeline. To route to iN: Share → Save to Files → Google Drive → IN/captures. Two extra taps. Worth doing it once to build the habit.
 
-**Links:** Paste a URL into the Context field of the form. The pipeline fetches the page title and a short summary and writes them to the Resources tab. Nothing else needed.
+**Links:** Paste a URL into the "What?" field. The pipeline detects it, fetches the page title and a short summary, and writes them to the Resources tab. Nothing else needed.
 
 ---
 

@@ -21,13 +21,12 @@ const CONFIG = {
   capturesFolderName: 'captures',
 
   // Your tag / category list — must match your form dropdown exactly
-  categories: ['Work', 'Home', 'Ideas', 'Personal'],
+  categories: ['To Do', 'Goal', 'Idea', 'Reminder', 'Resource'],
 
   // Your form field names — must match your form exactly
   formFields: {
-    mainCapture: "What's on your mind?",
+    mainCapture: 'What?',
     tag:         'Tag?',
-    context:     'Context?',
   },
 
   // Claude model for enrichment. Haiku is fast and cheap (~$0.002/capture).
@@ -58,14 +57,13 @@ const PROCESSED_COLUMNS = ['filename', 'processed_at'];
 
 // ── PROMPTS ────────────────────────────────────────────────────────────────────
 
-function buildEnrichPrompt(capture, context, tag) {
+function buildEnrichPrompt(capture, tag) {
   return `You are enriching a personal capture with structured metadata.
 
 The person capturing this uses these categories: ${CONFIG.categories.join(', ')}.
 
 Capture: ${capture}
 Tag: ${tag || '(none)'}
-Context: ${context || '(none)'}
 
 Extract the following. Return valid JSON only, no markdown, no explanation:
 {
@@ -124,15 +122,14 @@ function processFormResponses(ss) {
     const capture = (row[header.indexOf(CONFIG.formFields.mainCapture)] || '').trim();
     if (!capture) continue;
 
-    const tag       = row[header.indexOf(CONFIG.formFields.tag)]     || '';
-    const context   = row[header.indexOf(CONFIG.formFields.context)] || '';
+    const tag       = row[header.indexOf(CONFIG.formFields.tag)] || '';
     const timestamp = row[header.indexOf('Timestamp')];
     const entryDate = timestamp
       ? Utilities.formatDate(new Date(timestamp), 'UTC', 'yyyy-MM-dd')
       : '';
 
     try {
-      const enriched = callClaudeText(buildEnrichPrompt(capture, context, tag));
+      const enriched = callClaudeText(buildEnrichPrompt(capture, tag));
       const id = nextId(captureWs);
 
       captureWs.appendRow([
@@ -142,7 +139,7 @@ function processFormResponses(ss) {
         enriched.horizon  || '',
         enriched.size     || '',
         enriched.autonomy || '',
-        context,
+        '',
         toArray(enriched.resources).join('\n'),
         toArray(enriched.next_steps).join('\n'),
         enriched.search_query || '',
@@ -159,8 +156,8 @@ function processFormResponses(ss) {
         ]);
       }
 
-      // Fetch metadata for any URLs found in context
-      const urls = extractUrls(context);
+      // Fetch metadata for any URLs found in the capture
+      const urls = extractUrls(capture);
       urls.forEach(url => fetchAndWriteLink(url, capture, entryDate, now, resourceWs));
 
       formWs.getRange(i + 1, processedCol + 1).setValue(now);
