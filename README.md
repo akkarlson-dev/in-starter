@@ -79,6 +79,8 @@ Click **Make a copy**, rename the form, swap out the tag options for your own ca
 
 Want to build your own form from scratch instead? The CLAUDE.md setup conversation will walk you through it.
 
+**Saving it to your home screen:** don't tap the link directly from wherever you copied it (Mail, Notes, Messages, the form's own confirmation page) — Google's mobile auth blocks those in-app browsers and the link just fails to load or spins, without looking like an obvious error. Instead: copy the URL, open Safari in a **Private** window, paste it into the address bar there, and once it loads correctly, Share → Add to Home Screen. A few extra taps, but it's the version that works reliably.
+
 ---
 
 ## Three steps

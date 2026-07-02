@@ -21,7 +21,7 @@ Walk the user through these steps in order. Do not skip ahead. Do not explain a 
 3. **Drive folder** — confirm they have an `IN/captures/` folder in Google Drive (or create it).
 4. **Script deploy** — paste `setup.gs` into Google Apps Script, add their API key, set the trigger.
 5. **Form setup** — copy Amy's template form or build their own. Connect to the Sheet.
-6. **Home screen** — add the form to their iPhone home screen.
+6. **Home screen** — add the form to their iPhone home screen. Tapping a Google-hosted link (the form, or later a deployed view) from inside another app's embedded browser — Mail, Notes, Messages, a form's own confirmation page — often just fails to load or spins, without looking like an obvious error. Google's mobile auth blocks those "in-app browser" webviews. The reliable path: copy the URL, open Safari in a **Private** window (tabs icon → Private), paste it into the address bar there and open it, then Share → Add to Home Screen once it's loaded correctly. A few extra taps, but it's the version that actually works every time — don't let them tap the link directly from wherever they copied it.
 7. **First capture** — put something in. Confirm it shows up in the Sheet.
 
 ---
