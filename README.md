@@ -50,7 +50,7 @@ These categories are Amy's starting point, not a rule. They live in one place: t
 A standard Google account is all you need. The pipeline runs on Google Forms, Sheets, Drive, and Apps Script — all free. You do not need Google One AI Premium or any paid Google tier for this.
 
 **Anthropic account — ~$5 to start, ~$1-5/month**
-Go to [platform.anthropic.com](https://platform.anthropic.com), create an account, add a credit card, and buy a small credit top-up ($5 covers months of light pipeline use). Then create an API key. This account covers two things: the pipeline script (Claude Haiku classifies your captures) and Claude Code in VS Code (which walks you through setup).
+Go to [platform.anthropic.com](https://platform.anthropic.com), create an account, add a credit card, and buy a small credit top-up ($5 covers months of light pipeline use). Then, in the Console, go to **API Keys** in the left sidebar and click **Create Key**. Copy it somewhere for a minute, you'll paste it into Google Apps Script during setup. This account covers two things: the pipeline script (Claude Haiku classifies your captures) and Claude Code in VS Code (which walks you through setup).
 
 **VS Code — free**
 Download at [code.visualstudio.com](https://code.visualstudio.com). Install the Claude Code extension from the VS Code marketplace. Sign in with your Anthropic account.
