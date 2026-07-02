@@ -11,8 +11,8 @@ You get a Google Form on your iPhone home screen, a Drive folder for screenshots
 ```
 CAPTURE
   iPhone home screen
-    └─ iN Form (3 fields)  ──┐
-  iPhone Drive app           │
+    └─ iN Form (2 fields)  ──┐
+  Photos / screenshots       │
     └─ IN/captures/  ────────┤
   Voice transcript (file)    │
     └─ IN/captures/  ────────┤
@@ -79,7 +79,7 @@ Want to build your own form from scratch instead? The CLAUDE.md setup conversati
 
 **Drive drop** — for screenshots, photos, PDFs, and voice transcripts. On iPhone: Share → Save to Files → Google Drive → IN/captures. The pipeline picks up anything dropped here.
 
-**Links** — paste a URL into the form's Context field. The pipeline fetches the page title and a short summary automatically and writes it to the Resources tab.
+**Links** — paste a URL into the form's "What?" field. The pipeline fetches the page title and a short summary automatically and writes it to the Resources tab.
 
 ---
 
