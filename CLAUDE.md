@@ -19,10 +19,11 @@ Walk the user through these steps in order. Do not skip ahead. Do not explain a 
 1. **CONFIG** — fill in the 10 lines in the CONFIG block at the top of `setup.gs`. Ask the questions below.
 2. **Sheet setup** — create their Google Sheet and get the Sheet ID.
 3. **Drive folder** — confirm they have an `IN/captures/` folder in Google Drive (or create it).
-4. **Script deploy** — paste `setup.gs` into Google Apps Script, add their API key, set the trigger.
-5. **Form setup** — copy Amy's template form or build their own. Connect to the Sheet.
-6. **Home screen** — add the form to their iPhone home screen. Tapping a Google-hosted link (the form, or later a deployed view) from inside another app's embedded browser — Mail, Notes, Messages, a form's own confirmation page — often just fails to load or spins, without looking like an obvious error. Google's mobile auth blocks those "in-app browser" webviews. The reliable path: copy the URL, open Safari in a **Private** window (tabs icon → Private), paste it into the address bar there and open it, then Share → Add to Home Screen once it's loaded correctly. A few extra taps, but it's the version that actually works every time — don't let them tap the link directly from wherever they copied it.
-7. **First capture** — put something in. Confirm it shows up in the Sheet.
+4. **Script deploy** — paste `setup.gs` into Google Apps Script, add their API key, set the trigger (`runPipeline`, every 15 minutes).
+5. **Web app deploy** — Deploy → New deployment → type **Web app**. Execute as **Me**, who has access **Anyone** (not "Anyone with Google account" — that setting blocks the in-app browser case in step 7 below with a silent failure, not an obvious error). Copy the deployment URL — that's their Stats dashboard (`doGet()` in `setup.gs`).
+6. **Form setup** — copy Amy's template form or build their own. Connect to the Sheet.
+7. **Home screen** — add both links (the Form and the Stats dashboard from step 5) to their iPhone home screen. Tapping a Google-hosted link from inside another app's embedded browser — Mail, Notes, Messages, a form's own confirmation page — often just fails to load or spins, without looking like an obvious error. Google's mobile auth blocks those "in-app browser" webviews. The reliable path: copy the URL, open Safari in a **Private** window (tabs icon → Private), paste it into the address bar there and open it, then Share → Add to Home Screen once it's loaded correctly. A few extra taps, but it's the version that actually works every time — don't let them tap either link directly from wherever they copied it.
+8. **First capture** — put something in. Confirm it shows up in the Sheet, then check the Stats dashboard.
 
 ---
 
@@ -89,6 +90,7 @@ Once the pipeline is running, show them where things land:
 - The Resources tab: links with titles and summaries
 - The Tasks tab: anything classified as actionable, pulled out separately
 - The Pipeline Log tab: one row per trigger run, for debugging
+- The Stats dashboard (the Web app URL from step 5): activity by hour, a breakdown by capture type, and tap-to-reveal on any hour bar to see exactly what landed then
 
 Then stop. Leave them to use it for a week before adding anything.
 
