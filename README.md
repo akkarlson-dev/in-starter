@@ -87,7 +87,9 @@ Want to build your own form from scratch instead? The CLAUDE.md setup conversati
 
 Setup deploys a second link alongside the form: a Calendar page showing the real last 5 weeks, darker on days you captured more, with a tap on any day to see exactly what you captured then (task/thought/gem/question/resource, color-coded).
 
-It's a Web App deployment of `setup.gs` itself (the `doGet()` function at the bottom) — the CLAUDE.md setup conversation walks you through deploying it, no separate account or service involved. Save it to your home screen the same way as the form (see above).
+It's a Web App deployment of `setup.gs` itself (the `doGet()` function at the bottom) — the CLAUDE.md setup conversation walks you through deploying it, no separate account or service involved.
+
+**Finding and constructing your dashboard link:** in Apps Script, go to Deploy → Manage deployments and copy the Web app URL — that's your base link, something like `https://script.google.com/macros/s/AKfyc.../exec`. Append `?view=calendar` to it (e.g. `...exec?view=calendar`) to link directly to the Calendar view. Right now that's the only view and it's also the default, so the bare URL and the `?view=calendar` version show the same thing — but if a future Claude session adds another view (Grouped, Word Cloud, whatever you ask for), it'll follow the same `?view=name` pattern, and you'll construct that link the same way to give it its own home screen icon. Save it to your home screen the same way as the form (see above).
 
 ---
 

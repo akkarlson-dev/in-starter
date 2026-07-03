@@ -587,10 +587,21 @@ function toggleDay(i){
 </body></html>`;
 }
 
+// ?view=calendar is the only view today, and it's also the default (no
+// param needed) — but the dispatch pattern matches Amy's own pkm-system, so
+// when a future session adds another view (Grouped, Word Cloud, whatever
+// gets asked for), it's a new `else if (view === '...')` branch here, not a
+// rewrite. See README's "Your dashboard" section for how to construct a
+// direct link to a specific view for its own home screen icon.
 function doGet(e) {
   try {
-    const calData = getCalendarData();
-    const html = buildCalendarHtml(calData);
+    const view = (e && e.parameter && e.parameter.view) || 'calendar';
+    let html;
+    if (view === 'calendar') {
+      html = buildCalendarHtml(getCalendarData());
+    } else {
+      html = buildCalendarHtml(getCalendarData());
+    }
     return HtmlService.createHtmlOutput(html)
       .setTitle('iN — Calendar')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
