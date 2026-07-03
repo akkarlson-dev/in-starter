@@ -361,142 +361,119 @@ function getCapturesFolder() {
   return parent.createFolder(CONFIG.capturesFolderName);
 }
 
-// ── WEB APP — Stats dashboard ────────────────────────────────────────────────
-// A single page: when you capture, broken down by type, with a tap-to-reveal
-// on each hour so you can see exactly what landed then. Deploy this file as
-// a Web App (Deploy > New deployment > Web app, execute as yourself, who has
-// access: Anyone — see README for why "Anyone" and not "Anyone with Google
-// account") and the deployment URL is your dashboard link.
+// ── WEB APP — Calendar dashboard ─────────────────────────────────────────────
+// A real 5-week (35-day) grid of actual dates, not an hour-of-day aggregate —
+// an aggregate is interesting once and then static forever, where a rolling
+// window of real days keeps changing. Cell color is volume only (one hue,
+// opacity-scaled — a sequential heat ramp), not dominant type: a single cell
+// can only show one color, which would throw away information the
+// click-to-reveal panel below preserves instead (each entry keeps its own
+// type color). Deploy this file as a Web App (Deploy > New deployment > Web
+// app, execute as yourself, who has access: Anyone — see README for why
+// "Anyone" and not "Anyone with Google account") and the deployment URL is
+// your dashboard link.
 //
-// Ported from Amy's own pkm-system/scripts/in_heartbeat.gs Pulse view,
-// adapted to this kit's simpler schema (no journal-batch source to filter
-// out — every row here already carries an accurate per-capture timestamp,
-// see the createdAt fix above) and validated with the dataviz skill's
-// categorical color formula against this page's dark surface (#09080F).
+// Ported from Amy's own pkm-system/scripts/in_heartbeat.gs Calendar view,
+// adapted to this kit's simpler schema (task/thought/gem/question/resource
+// instead of her category taxonomy; no notes field or jump-link heuristics —
+// kept lean) and validated with the dataviz skill's categorical color
+// formula against this page's dark surface (#09080F).
+//
+// NOTE for whoever adapts this: linkify()'s regexes below use DOUBLE
+// backslashes (\\/\\/, \\s) — this whole page is one big JS template
+// literal, and inside a template literal (same rule as any plain string)
+// \/ and \s aren't recognized escapes, so a single backslash gets silently
+// dropped, producing a broken regex and a SyntaxError that kills the entire
+// inline <script> before anything can run. Learned this the hard way in
+// Amy's own Calendar view — don't reintroduce it here.
 
 const IN_ICON_DATA_URI = 'https://i.imgur.com/4mCGlZg.png';
 
-// Fixed order — same categorical-color assignment method as Amy's own Pulse
-// view, just mapped onto this kit's task/thought/gem/question/resource types
-// instead of her category taxonomy.
+// Fixed order — same categorical-color assignment method as Amy's own
+// system, just mapped onto this kit's task/thought/gem/question/resource
+// types instead of her category taxonomy.
 const CAPTURE_TYPES = ['task', 'thought', 'gem', 'question', 'resource'];
 const TYPE_COLORS = {
   task: '#3987e5', thought: '#199e70', gem: '#c98500', question: '#008300', resource: '#9085e9',
 };
 
-function getStatsData() {
+function getCalendarData() {
   const ss = SpreadsheetApp.openById(CONFIG.sheetId);
   const ws = ss.getSheetByName('Captures');
-  if (!ws || ws.getLastRow() <= 1) {
-    return {
-      byHour: new Array(24).fill(0),
-      byHourByType: new Array(24).fill(null).map(() => ({})),
-      entriesByHour: new Array(24).fill(null).map(() => []),
-      byType: {}, total: 0, withLinks: 0, peakHour: 0,
-    };
+  const tz = Session.getScriptTimeZone();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // this week's Sunday
+  const gridStart = new Date(startOfWeek);
+  gridStart.setDate(gridStart.getDate() - 28); // 4 weeks earlier -> 5 weeks (35 days) total
+
+  const byDate = {}; // 'yyyy-MM-dd' -> { count, entries: [{ capture, type, autonomy, created_at }] }
+
+  if (ws && ws.getLastRow() > 1) {
+    const data = ws.getRange(2, 1, ws.getLastRow() - 1, CAPTURE_COLUMNS.length).getValues();
+    data.forEach(r => {
+      if (!r[0] || !r[5] || !r[1]) return; // id, capture, created_at
+      const d = new Date(r[1]);
+      if (isNaN(d)) return;
+      const key = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+      if (!byDate[key]) byDate[key] = { count: 0, entries: [] };
+      byDate[key].count++;
+      byDate[key].entries.push({
+        capture: r[5] || '',
+        type: r[6] || 'thought',
+        autonomy: r[9] || '',
+        created_at: r[1],
+      });
+    });
   }
 
-  const lastRow = ws.getLastRow();
-  const data = ws.getRange(2, 1, lastRow - 1, CAPTURE_COLUMNS.length).getValues();
-  const byHour = new Array(24).fill(0);
-  const byHourByType = new Array(24).fill(null).map(() => ({}));
-  const entriesByHour = new Array(24).fill(null).map(() => []);
-  const byType = {};
-  let total = 0;
-  let withLinks = 0;
+  const cells = [];
+  for (let i = 0; i < 35; i++) {
+    const d = new Date(gridStart);
+    d.setDate(d.getDate() + i);
+    const key = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+    const isFuture = d.getTime() > today.getTime();
+    const info = byDate[key] || { count: 0, entries: [] };
+    info.entries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    cells.push({
+      date: key,
+      dayNum: d.getDate(),
+      isToday: d.getTime() === today.getTime(),
+      isFuture,
+      count: isFuture ? 0 : info.count,
+      entries: info.entries,
+    });
+  }
 
-  data.forEach(r => {
-    if (!r[0] || !r[5]) return; // id, capture
-    total++;
-    const type = r[6] || 'thought';
-    if (r[1]) {
-      const d = new Date(r[1]); // created_at
-      if (!isNaN(d)) {
-        const hr = d.getHours();
-        byHour[hr]++;
-        byHourByType[hr][type] = (byHourByType[hr][type] || 0) + 1;
-        entriesByHour[hr].push({ capture: String(r[5]).substring(0, 200), type, created_at: r[1] });
-      }
-    }
-    byType[type] = (byType[type] || 0) + 1;
-    if (String(r[10] || '').match(/https?:\/\//)) withLinks++; // resources
-  });
-
-  entriesByHour.forEach(list => list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-
-  const peakHour = byHour.indexOf(Math.max(...byHour));
-  return { byHour, byHourByType, entriesByHour, byType, total, withLinks, peakHour };
+  const maxCount = Math.max.apply(null, cells.map(c => c.count).concat(1));
+  return { cells, maxCount };
 }
 
-function buildStatsHtml(stats) {
-  function hourLabel(h) {
-    if (h === 0) return 'midnight';
-    if (h === 12) return 'noon';
-    return h < 12 ? h + 'am' : (h - 12) + 'pm';
+function buildCalendarHtml(data) {
+  const DAY_HEADS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const headHtml = DAY_HEADS.map(d => `<div class="cal-head">${d}</div>`).join('');
+
+  function heatStyle(cell) {
+    if (cell.isFuture) return 'background:transparent;border:1px dashed rgba(255,255,255,0.08)';
+    if (!cell.count) return 'background:rgba(255,255,255,0.04)';
+    const t = Math.min(cell.count / data.maxCount, 1);
+    const alpha = 0.18 + t * 0.72;
+    return `background:rgba(239,147,0,${alpha.toFixed(2)})`;
   }
 
-  const maxCount = Math.max(...stats.byHour, 1);
-  const barW = 12;
-  const gap = 3;
-  const chartH = 100;
-  const totalW = 24 * (barW + gap) - gap;
+  const cellsHtml = data.cells.map((cell, i) => {
+    const classes = ['cal-cell'];
+    if (cell.isToday) classes.push('today');
+    if (cell.isFuture) classes.push('future');
+    if (!cell.isFuture && cell.count) classes.push('has-entries');
+    const clickAttr = (!cell.isFuture && cell.count) ? ` onclick="toggleDay(${i})"` : '';
+    return `<div class="${classes.join(' ')}" style="${heatStyle(cell)}"${clickAttr}><span class="cal-daynum">${cell.dayNum}</span></div>`;
+  }).join('');
 
-  let bars = '';
-  let hitRects = '';
-  stats.byHour.forEach((count, i) => {
-    if (!count) return;
-    const h = Math.max(Math.round((count / maxCount) * chartH), 3);
-    const x = i * (barW + gap);
-    const typeCounts = stats.byHourByType[i] || {};
-    let yCursor = chartH - h;
-    CAPTURE_TYPES.forEach(type => {
-      const segCount = typeCounts[type];
-      if (!segCount) return;
-      const segH = Math.max(Math.round((segCount / count) * h), 1);
-      bars += `<rect x="${x}" y="${yCursor}" width="${barW}" height="${segH}" fill="${TYPE_COLORS[type] || '#9B8EC4'}" rx="1"/>`;
-      yCursor += segH;
-    });
-    hitRects += `<rect class="hour-hit" x="${x - gap / 2}" y="0" width="${barW + gap}" height="${chartH}" fill="transparent" onclick="toggleHour(${i})"/>`;
-  });
-
-  let labelsSvg = '';
-  [[0,'12a'],[6,'6a'],[12,'12p'],[18,'6p']].forEach(([h, label]) => {
-    const x = h * (barW + gap) + barW / 2;
-    labelsSvg += `<text x="${x}" y="${chartH + 18}" text-anchor="middle" fill="rgba(212,255,89,0.35)" font-size="9" font-family="-apple-system,sans-serif">${label}</text>`;
-  });
-
-  const hourChartSvg = `<svg viewBox="0 0 ${totalW} ${chartH + 24}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${bars}${hitRects}${labelsSvg}</svg>`;
-
-  const hourLabels = new Array(24).fill(0).map((_, h) => hourLabel(h));
-  const entriesByHourJson = JSON.stringify(stats.entriesByHour || []).replace(/<\/script>/g, '<\\/script>');
+  const entriesByDayJson = JSON.stringify(data.cells.map(c => ({ date: c.date, entries: c.entries }))).replace(/<\/script>/g, '<\\/script>');
   const typeColorsJson = JSON.stringify(TYPE_COLORS);
-  const hourLabelsJson = JSON.stringify(hourLabels);
-
-  const legendHtml = CAPTURE_TYPES
-    .filter(type => stats.byType[type])
-    .map(type => `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px"><span style="width:9px;height:9px;border-radius:2px;background:${TYPE_COLORS[type]};display:inline-block"></span><span style="font-size:11px;color:rgba(155,142,196,0.6);letter-spacing:0.04em;text-transform:uppercase">${type}</span></span>`)
-    .join('');
-
-  const total = stats.total || 1;
-  let typeBarsHtml = '';
-  CAPTURE_TYPES.forEach(type => {
-    const count = stats.byType[type] || 0;
-    if (!count) return;
-    const pct = Math.round(count / total * 100);
-    const color = TYPE_COLORS[type] || '#9B8EC4';
-    typeBarsHtml +=
-      `<div style="margin-bottom:14px">` +
-        `<div style="display:flex;justify-content:space-between;margin-bottom:5px">` +
-          `<span style="font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:${color}">${type}</span>` +
-          `<span style="font-size:13px;color:rgba(155,142,196,0.55)">${count}</span>` +
-        `</div>` +
-        `<div style="background:rgba(255,255,255,0.05);border-radius:3px;height:5px">` +
-          `<div style="background:${color};width:${pct}%;height:5px;border-radius:3px;opacity:0.8"></div>` +
-        `</div>` +
-      `</div>`;
-  });
-
-  const linkPct = stats.total ? Math.round(stats.withLinks / stats.total * 100) : 0;
 
   return `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -505,87 +482,106 @@ function buildStatsHtml(stats) {
 <meta name="apple-mobile-web-app-title" content="iN">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0b1810">
-<title>iN — Stats</title>
+<title>iN — Calendar</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#09080F;color:#E8E0F0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
-.header{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;justify-content:space-between;align-items:baseline}
+.header{padding:20px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.07)}
 .wordmark{font-size:26px;font-weight:300;letter-spacing:0.06em;color:#FFE9A8}
-.total-count{font-size:16px;color:#9B8EC4;letter-spacing:0.06em}
-.section{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.section{padding:20px 16px}
 .section-label{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(212,255,89,0.45);margin-bottom:14px}
-.peak-note{margin-top:10px;font-size:16px;color:#d4ff59;letter-spacing:0.02em}
-.stat-grid{display:flex;gap:24px}
-.stat-box{flex:1}
-.stat-n{font-size:36px;font-weight:300;color:#d4ff59;line-height:1;margin-bottom:4px}
-.stat-label{font-size:11px;color:rgba(155,142,196,0.55);letter-spacing:0.08em;text-transform:uppercase}
-.hour-hit{cursor:pointer}
-.hour-hit:hover{fill:rgba(255,255,255,0.06)}
-.hour-hint{margin-top:8px;font-size:11px;color:rgba(155,142,196,0.4)}
-.hour-panel{margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px}
-.hour-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.hour-panel-title{font-size:13px;color:#d4ff59;letter-spacing:0.03em}
-.hour-panel-close{cursor:pointer;color:rgba(155,142,196,0.6);font-size:18px;padding:0 4px;line-height:1}
-.hour-entry{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:14px;line-height:1.4}
-.hour-entry:last-child{border-bottom:none}
-.hour-entry-cat{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:7px;vertical-align:middle}
-.hour-entry-time{color:rgba(155,142,196,0.5);font-size:11px;margin-left:6px;white-space:nowrap}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal-head{text-align:center;font-size:24px;font-weight:700;letter-spacing:0.01em;text-transform:uppercase;color:rgba(155,142,196,0.75);padding-bottom:8px}
+.cal-cell{aspect-ratio:1;border-radius:6px;position:relative}
+.cal-cell.has-entries{cursor:pointer}
+.cal-cell.has-entries:hover{outline:1px solid rgba(255,255,255,0.25)}
+.cal-cell.today{outline:2px solid #d4ff59;outline-offset:1px}
+.cal-daynum{position:absolute;top:3px;right:4px;font-size:16px;font-weight:600;color:rgba(255,255,255,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.7)}
+.cal-cell.future .cal-daynum{color:rgba(255,255,255,0.3);text-shadow:none}
+.cal-hint{margin-top:10px;font-size:11px;color:rgba(155,142,196,0.4)}
+.day-panel{margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;display:none}
+.day-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.day-panel-title{font-size:20px;color:#d4ff59;letter-spacing:0.03em}
+.day-panel-close{cursor:pointer;color:rgba(155,142,196,0.6);font-size:26px;padding:0 4px;line-height:1}
+.day-entry{padding:20px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.day-entry:last-child{border-bottom:none}
+.day-entry-cat-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:9px;vertical-align:middle}
+.day-entry-text{font-size:40px;line-height:1.4;color:#E8E0F0;word-break:break-word}
+.day-inline-link{color:#d4ff59;word-break:break-all;text-decoration:underline;text-underline-offset:2px}
+.day-meta-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.day-age{font-size:20px;color:rgba(155,142,196,0.55);letter-spacing:0.02em}
+.day-cat-tag{font-size:20px;letter-spacing:0.02em;color:rgba(155,142,196,0.75)}
+.day-badge{font-size:16px;letter-spacing:0.04em;padding:4px 12px;border-radius:20px;font-weight:600}
+.day-badge-self{background:rgba(160,123,255,0.15);color:#A07BFF}
+.day-badge-delegate{background:rgba(201,133,0,0.18);color:#e0a636}
+.day-badge-automate{background:rgba(82,200,122,0.15);color:#52C87A}
 </style>
 </head><body>
-<div class="header">
-  <span class="wordmark">iN Stats</span>
-  <span class="total-count">${stats.total} captures</span>
-</div>
+<div class="header"><span class="wordmark">iN Calendar</span></div>
 <div class="section">
-  <div class="section-label">Activity by hour</div>
-  ${hourChartSvg}
-  <div style="margin-top:10px">${legendHtml}</div>
-  ${stats.byHour[stats.peakHour] > 0 ? `<div class="peak-note">peak: ${hourLabel(stats.peakHour)} · ${stats.byHour[stats.peakHour]} captures</div>` : ''}
-  <div class="hour-hint">tap a bar to see what you captured then</div>
-  <div id="hourPanel" class="hour-panel" style="display:none">
-    <div class="hour-panel-head">
-      <span class="hour-panel-title" id="hourPanelTitle"></span>
-      <span class="hour-panel-close" onclick="closeHourPanel()">&times;</span>
+  <div class="section-label">Last 5 weeks</div>
+  <div class="cal-grid">${headHtml}${cellsHtml}</div>
+  <div class="cal-hint">darker = more captures that day · tap a day to see what landed</div>
+  <div id="dayPanel" class="day-panel">
+    <div class="day-panel-head">
+      <span class="day-panel-title" id="dayPanelTitle"></span>
+      <span class="day-panel-close" onclick="closeDayPanel()">&times;</span>
     </div>
-    <div id="hourPanelList"></div>
-  </div>
-</div>
-<div class="section">
-  <div class="section-label">Capture types</div>
-  ${typeBarsHtml}
-</div>
-<div class="section">
-  <div class="section-label">Quick stats</div>
-  <div class="stat-grid">
-    <div class="stat-box">
-      <div class="stat-n">${stats.total}</div>
-      <div class="stat-label">total captures</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-n">${linkPct}%</div>
-      <div class="stat-label">include a link</div>
-    </div>
+    <div id="dayPanelList"></div>
   </div>
 </div>
 <script>
-var ENTRIES_BY_HOUR = ${entriesByHourJson};
+window.onerror = function(msg, url, line, col, err) {
+  var list = document.getElementById("dayPanelList");
+  var panel = document.getElementById("dayPanel");
+  var title = document.getElementById("dayPanelTitle");
+  if (list && panel && title) {
+    title.textContent = "Script error";
+    list.innerHTML = '<div style="color:#ff6b6b;font-size:24px;padding:12px 0;line-height:1.4">' + msg + ' (line ' + line + ')</div>';
+    panel.style.display = "block";
+  }
+  return false;
+};
+var ENTRIES_BY_DAY = ${entriesByDayJson};
 var TYPE_COLORS_JS = ${typeColorsJson};
-var HOUR_LABELS = ${hourLabelsJson};
+var AUTONOMY_BADGES = {
+  self:     { label: 'self',     cls: 'day-badge-self' },
+  delegate: { label: 'delegate', cls: 'day-badge-delegate' },
+  automate: { label: 'automate', cls: 'day-badge-automate' },
+};
 var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-var openHour = null;
+var openIdx = null;
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function fmtDateTime(s){var d=new Date(s);if(isNaN(d))return"";var h=d.getHours();var m=d.getMinutes();var ap=h<12?"am":"pm";var h12=h%12||12;return MONTHS[d.getMonth()]+" "+d.getDate()+" · "+h12+":"+(m<10?"0":"")+m+ap;}
-function closeHourPanel(){document.getElementById("hourPanel").style.display="none";openHour=null;}
-function toggleHour(h){
-  var list=ENTRIES_BY_HOUR[h]||[]; // already sorted newest-first in getStatsData()
-  if(!list.length)return;
-  if(openHour===h){closeHourPanel();return;}
-  openHour=h;
-  document.getElementById("hourPanelTitle").textContent=HOUR_LABELS[h]+" · "+list.length+" "+(list.length===1?"capture":"captures");
-  document.getElementById("hourPanelList").innerHTML=list.map(function(e){
-    return '<div class="hour-entry"><span class="hour-entry-cat" style="background:'+(TYPE_COLORS_JS[e.type]||"#9B8EC4")+'"></span>'+esc(e.capture)+'<span class="hour-entry-time">'+fmtDateTime(e.created_at)+'</span></div>';
+function linkify(s){return String(s).split(/(https?:\\/\\/[^\\s<>"]+)/g).map(function(part,i){if(i%2===1){var e=esc(part);var label=part.replace(/^https?:\\/\\/(?:www\\.)?/,"").split(/[/?#]/)[0];if(label.length>40)label=label.substring(0,40)+"…";return '<a href="'+e+'" target="_blank" class="day-inline-link">'+esc(label)+'</a>';}return esc(part);}).join("");}
+function fmtTime(s){var d=new Date(s);if(isNaN(d))return"";var h=d.getHours();var m=d.getMinutes();var ap=h<12?"am":"pm";var h12=h%12||12;return h12+":"+(m<10?"0":"")+m+ap;}
+function fmtDayHeading(key){var p=key.split("-");var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));return MONTHS[d.getMonth()]+" "+d.getDate();}
+function closeDayPanel(){document.getElementById("dayPanel").style.display="none";openIdx=null;}
+function toggleDay(i){
+ try {
+  var day=ENTRIES_BY_DAY[i];
+  if(!day||!day.entries.length)return;
+  if(openIdx===i){closeDayPanel();return;}
+  openIdx=i;
+  document.getElementById("dayPanelTitle").textContent=fmtDayHeading(day.date)+" · "+day.entries.length+" "+(day.entries.length===1?"entry":"entries");
+  document.getElementById("dayPanelList").innerHTML=day.entries.map(function(e){
+    var badge=AUTONOMY_BADGES[e.autonomy];
+    return '<div class="day-entry">'+
+      '<span class="day-entry-cat-dot" style="background:'+(TYPE_COLORS_JS[e.type]||"#9B8EC4")+'"></span>'+
+      '<span class="day-entry-text">'+linkify(e.capture)+'</span>'+
+      '<div class="day-meta-row">'+
+        '<span class="day-age">'+fmtTime(e.created_at)+'</span>'+
+        '<span class="day-cat-tag">'+esc(e.type)+'</span>'+
+        (badge?'<span class="day-badge '+badge.cls+'">'+badge.label+'</span>':'')+
+      '</div>'+
+    '</div>';
   }).join("");
-  document.getElementById("hourPanel").style.display="block";
+  document.getElementById("dayPanel").style.display="block";
+ } catch (err) {
+  var list=document.getElementById("dayPanelList");
+  document.getElementById("dayPanelTitle").textContent="Script error in toggleDay";
+  list.innerHTML='<div style="color:#ff6b6b;font-size:24px;padding:12px 0;line-height:1.4">'+err.message+'</div>';
+  document.getElementById("dayPanel").style.display="block";
+ }
 }
 </script>
 </body></html>`;
@@ -593,10 +589,10 @@ function toggleHour(h){
 
 function doGet(e) {
   try {
-    const stats = getStatsData();
-    const html = buildStatsHtml(stats);
+    const calData = getCalendarData();
+    const html = buildCalendarHtml(calData);
     return HtmlService.createHtmlOutput(html)
-      .setTitle('iN — Stats')
+      .setTitle('iN — Calendar')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
     return HtmlService.createHtmlOutput(

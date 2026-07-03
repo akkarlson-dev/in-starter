@@ -79,13 +79,13 @@ Click **Make a copy**, rename the form, swap out the tag options for your own ca
 
 Want to build your own form from scratch instead? The CLAUDE.md setup conversation will walk you through it.
 
-**Saving it to your home screen:** don't tap the link directly from wherever you copied it (Mail, Notes, Messages, the form's own confirmation page) — Google's mobile auth blocks those in-app browsers and the link just fails to load or spins, without looking like an obvious error. Instead: copy the URL, open Safari in a **Private** window, paste it into the address bar there, and once it loads correctly, Share → Add to Home Screen. A few extra taps, but it's the version that works reliably. The same trick applies to your Stats dashboard link below — you'll end up with two icons on your home screen.
+**Saving it to your home screen:** don't tap the link directly from wherever you copied it (Mail, Notes, Messages, the form's own confirmation page) — Google's mobile auth blocks those in-app browsers and the link just fails to load or spins, without looking like an obvious error. Instead: copy the URL, open Safari in a **Private** window, paste it into the address bar there, and once it loads correctly, Share → Add to Home Screen. A few extra taps, but it's the version that works reliably. The same trick applies to your Calendar dashboard link below — you'll end up with two icons on your home screen.
 
 ---
 
 ## Your dashboard
 
-Setup deploys a second link alongside the form: a Stats page showing when you capture (by hour of day), a breakdown by type (task/thought/gem/question/resource), and a tap on any hour bar to see exactly what you captured then.
+Setup deploys a second link alongside the form: a Calendar page showing the real last 5 weeks, darker on days you captured more, with a tap on any day to see exactly what you captured then (task/thought/gem/question/resource, color-coded).
 
 It's a Web App deployment of `setup.gs` itself (the `doGet()` function at the bottom) — the CLAUDE.md setup conversation walks you through deploying it, no separate account or service involved. Save it to your home screen the same way as the form (see above).
 
